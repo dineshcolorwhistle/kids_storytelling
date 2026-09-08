@@ -1,0 +1,40 @@
+# Python virtual environment
+.venv/
+env/
+venv/
+ENV/
+
+# Python bytecode & caches
+__pycache__/
+*.py[cod]
+*$py.class
+*.pytest_cache/
+
+# Audio and generated data (keep data structure, ignore heavy files)
+data/voices/*.wav
+data/generated_audio/*/*.wav
+data/generated_audio/*.wav
+data/database/*.db
+!data/database/.gitkeep
+!data/voices/.gitkeep
+!data/generated_audio/.gitkeep
+
+# Model checkpoints & cache
+checkpoints/
+models/
+*.onnx
+*.bin
+*.safetensors
+
+# Logs & temp files
+*.log
+scratch/
+.system_generated/
+
+# OS specific
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+#.md files
+project_scope.md

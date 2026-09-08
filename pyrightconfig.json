@@ -1,0 +1,8 @@
+{
+    "venvPath": "d:/Projects/kids_storytelling",
+    "venv": ".venv",
+    "extraPaths": [
+        "d:/Projects/kids_storytelling/.venv/Lib/site-packages",
+        "d:/Projects/kids_storytelling"
+    ]
+}
