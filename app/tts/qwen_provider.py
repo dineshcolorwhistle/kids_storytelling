@@ -100,11 +100,15 @@ class QwenTTSProvider(TTSProvider):
 
         import importlib
         sf = importlib.import_module("soundfile")
+        from app.audio.audio_utils import resample_and_format
+        
         audio_data = wavs[0] if isinstance(wavs, list) else wavs
-        sf.write(dest_path, audio_data, sr)
+        # Resample to 48kHz Stereo for universal speaker and headset playback
+        formatted_audio = resample_and_format(audio_data, orig_sr=sr, target_sr=48000)
+        sf.write(dest_path, formatted_audio, 48000, subtype="PCM_16")
 
         if progress_callback:
             progress_callback(100, "Audio ready!")
 
-        logger.info(f"Saved generated audio to {dest_path} (Sample Rate: {sr} Hz)")
+        logger.info(f"Saved generated audio to {dest_path} (Normalized to 48000 Hz Stereo)")
         return dest_path

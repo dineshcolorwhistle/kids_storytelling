@@ -5,6 +5,7 @@ Wraps QMediaPlayer and QAudioOutput for kid-friendly desktop playback.
 import os
 from PySide6.QtCore import QObject, Signal, QUrl
 from PySide6.QtMultimedia import QMediaPlayer, QAudioOutput
+from app.audio.audio_utils import ensure_compatible_audio
 from app.utils.logger import logger
 
 class AudioPlayer(QObject):
@@ -34,7 +35,8 @@ class AudioPlayer(QObject):
             logger.error(f"Audio file does not exist: {file_path}")
             return False
             
-        self.current_file = os.path.abspath(file_path)
+        # Ensure audio is 48kHz Stereo 16-bit for speaker & headset compatibility
+        self.current_file = ensure_compatible_audio(os.path.abspath(file_path))
         url = QUrl.fromLocalFile(self.current_file)
         self.player.setSource(url)
         logger.info(f"Loaded audio into player: {self.current_file}")
