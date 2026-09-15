@@ -37,3 +37,7 @@ BASE_CLONE_TTS_MODEL = "Qwen/Qwen3-TTS-12Hz-0.6B-Base"
 # TTS Mode: "local" or "remote"
 TTS_MODE = os.getenv("TTS_MODE", "local")
 REMOTE_TTS_URL = os.getenv("REMOTE_TTS_URL", "http://localhost:8000")
+
+# Avatar & Lip-Sync Settings
+AVATAR_FPS = 60
+LIP_SYNC_FRAME_INTERVAL_MS = 25  # Analysis frame window in milliseconds

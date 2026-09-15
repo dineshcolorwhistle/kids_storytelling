@@ -29,17 +29,25 @@ class AudioPlayer(QObject):
         self.player.durationChanged.connect(self._on_duration_changed)
         self.player.playbackStateChanged.connect(self._on_state_changed)
 
+    def set_video_output(self, video_widget):
+        """Connect QVideoWidget to the media player."""
+        self.player.setVideoOutput(video_widget)
+
     def load_file(self, file_path: str) -> bool:
-        """Load an audio file into the player."""
+        """Load an audio or video file into the player."""
         if not os.path.exists(file_path):
-            logger.error(f"Audio file does not exist: {file_path}")
+            logger.error(f"Media file does not exist: {file_path}")
             return False
             
-        # Ensure audio is 48kHz Stereo 16-bit for speaker & headset compatibility
-        self.current_file = ensure_compatible_audio(os.path.abspath(file_path))
+        if file_path.lower().endswith(".mp4"):
+            self.current_file = os.path.abspath(file_path)
+        else:
+            # Ensure audio is 48kHz Stereo 16-bit for speaker & headset compatibility
+            self.current_file = ensure_compatible_audio(os.path.abspath(file_path))
+
         url = QUrl.fromLocalFile(self.current_file)
         self.player.setSource(url)
-        logger.info(f"Loaded audio into player: {self.current_file}")
+        logger.info(f"Loaded media into player: {self.current_file}")
         return True
 
     def play(self):
