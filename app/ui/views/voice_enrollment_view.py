@@ -44,7 +44,7 @@ class VoiceEnrollmentView(QWidget):
         # Top Bar: Back / Cancel
         top_bar = QHBoxLayout()
         self.back_btn = QPushButton("← Cancel")
-        self.back_btn.setCursor(Qt.PointingHandCursor)
+        self.back_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.back_btn.setStyleSheet("""
             QPushButton {
                 background: #EDF2F7;
@@ -130,7 +130,7 @@ class VoiceEnrollmentView(QWidget):
         btn_layout.setSpacing(12)
 
         self.record_btn = QPushButton("🎙️ Start Recording")
-        self.record_btn.setCursor(Qt.PointingHandCursor)
+        self.record_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.record_btn.setStyleSheet("""
             QPushButton {
                 background-color: #E53E3E;
@@ -148,7 +148,7 @@ class VoiceEnrollmentView(QWidget):
 
         self.preview_btn = QPushButton("▶ Play Recording")
         self.preview_btn.setEnabled(False)
-        self.preview_btn.setCursor(Qt.PointingHandCursor)
+        self.preview_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.preview_btn.setStyleSheet("""
             QPushButton {
                 background-color: #4299E1;
@@ -167,7 +167,7 @@ class VoiceEnrollmentView(QWidget):
 
         self.rerecord_btn = QPushButton("↺ Record Again")
         self.rerecord_btn.setEnabled(False)
-        self.rerecord_btn.setCursor(Qt.PointingHandCursor)
+        self.rerecord_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.rerecord_btn.setStyleSheet("""
             QPushButton {
                 background: #EDF2F7;
@@ -221,7 +221,7 @@ class VoiceEnrollmentView(QWidget):
 
         self.save_btn = QPushButton("💾 Save Voice")
         self.save_btn.setEnabled(False)
-        self.save_btn.setCursor(Qt.PointingHandCursor)
+        self.save_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.save_btn.setStyleSheet("""
             QPushButton {
                 background-color: #48BB78;
@@ -243,9 +243,11 @@ class VoiceEnrollmentView(QWidget):
     def _connect_signals(self):
         self.recorder.recording_tick.connect(self._on_tick)
         self.recorder.error_occurred.connect(self._on_recorder_error)
+        self.player.playback_completed.connect(self._on_preview_completed)
 
     def _on_record_clicked(self):
         if not self.recorder.is_recording():
+            self.player.unload()
             success = self.recorder.start_recording(self.temp_audio_path)
             if success:
                 self.record_btn.setText("⏹️ Stop Recording")
@@ -308,17 +310,19 @@ class VoiceEnrollmentView(QWidget):
 
     def _on_preview_clicked(self):
         if self.player.is_playing():
-            self.player.stop()
+            self.player.unload()
             self.preview_btn.setText("▶ Play Recording")
         else:
             if self.player.load_file(self.temp_audio_path):
                 self.player.play()
                 self.preview_btn.setText("⏹️ Stop Preview")
-                self.player.playback_completed.connect(lambda: self.preview_btn.setText("▶ Play Recording"))
+
+    def _on_preview_completed(self):
+        self.player.unload()
+        self.preview_btn.setText("▶ Play Recording")
 
     def _on_rerecord_clicked(self):
-        if self.player.is_playing():
-            self.player.stop()
+        self.player.unload()
         self.timer_label.setText("⏱️ 00:00")
         self.timer_label.setStyleSheet("""
             background: #EDF2F7;
@@ -356,6 +360,5 @@ class VoiceEnrollmentView(QWidget):
     def _on_cancel(self):
         if self.recorder.is_recording():
             self.recorder.stop_recording()
-        if self.player.is_playing():
-            self.player.stop()
+        self.player.unload()
         self.back_clicked.emit()

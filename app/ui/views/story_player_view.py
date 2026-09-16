@@ -11,7 +11,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Signal, Qt
 from app.audio.player import AudioPlayer
 from app.audio.lip_sync_engine import LipSyncEngine, LipSyncTrack
-from app.ui.widgets.avatar_video_widget import AvatarVideoWidget
+from app.ui.widgets.barnaby_bear_widget import BarnabyBearStageWidget
 from app.database.models import Story
 from app.utils.logger import logger
 
@@ -253,13 +253,13 @@ class StoryPlayerView(QWidget):
         left_column.addLayout(controls_and_vol)
 
         # ==========================================================
-        # RIGHT COLUMN (40% / Right Corner): 3D Video Avatar Stage
+        # RIGHT COLUMN (40% / Right Corner): 3D Animated Avatar Stage
         # ==========================================================
         right_column = QVBoxLayout()
         right_column.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        self.avatar_stage = AvatarVideoWidget(self)
-        self.player.set_video_output(self.avatar_stage.get_video_widget())
+        self.avatar_stage = BarnabyBearStageWidget(self)
+        self.avatar_stage.set_player_ref(self.player)
         right_column.addWidget(self.avatar_stage)
 
         card_layout.addLayout(left_column, stretch=3)
@@ -279,23 +279,28 @@ class StoryPlayerView(QWidget):
         self.progress_slider.sliderReleased.connect(self._on_slider_released)
 
     def play_story(self, story: Story, audio_path: str, voice_name: str = "Default AI Voice"):
-        """Load and start playing the story with synchronized 3D video avatar."""
+        """Load and start playing the story with synchronized 3D avatar."""
         self.story = story
         self.title_label.setText(story.title)
         self.narrator_label.setText(f"Narrator: {voice_name}")
         self.story_text_label.setText(story.content)
         self.avatar_stage.set_narrator_name(voice_name)
         
-        # Check if 3D animated video exists
-        default_video = "data/avatars/barnaby_3d_storyteller.mp4"
-        media_to_play = default_video if os.path.exists(default_video) else audio_path
-        
-        # Load media into player
-        if self.player.load_file(media_to_play):
+        # Pre-compute lip-sync track for real-time 3D mouth animation
+        try:
+            self.lip_sync_track = LipSyncEngine.analyze_audio(audio_path)
+            self.avatar_stage.set_lip_sync_track(self.lip_sync_track)
+        except Exception as e:
+            logger.warning(f"Could not compute lip-sync track for {audio_path}: {e}")
+            self.lip_sync_track = None
+            self.avatar_stage.set_lip_sync_track(None)
+
+        # Load and play the actual synthesized voice file
+        if self.player.load_file(audio_path):
             self.player.play()
             self.avatar_stage.set_speaking_state(True)
         else:
-            logger.error(f"Failed to play media from {media_to_play}")
+            logger.error(f"Failed to play audio from {audio_path}")
 
     def _toggle_play_pause(self):
         if self.player.is_playing():

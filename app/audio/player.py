@@ -62,6 +62,12 @@ class AudioPlayer(QObject):
         """Stop playback and reset position."""
         self.player.stop()
 
+    def unload(self):
+        """Stop playback and release file handle from QMediaPlayer."""
+        self.player.stop()
+        self.player.setSource(QUrl())
+        self.current_file = None
+
     def replay(self):
         """Restart playback from the beginning."""
         self.seek(0)

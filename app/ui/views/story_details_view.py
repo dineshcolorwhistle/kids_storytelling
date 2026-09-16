@@ -2,6 +2,7 @@
 Story Details View
 Displays story overview, text preview, dynamic voice profile selection, and generation trigger.
 """
+from typing import Optional
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
     QPushButton, QTextEdit, QFrame, QRadioButton, QButtonGroup, QMessageBox
@@ -20,6 +21,7 @@ class StoryDetailsView(QWidget):
         super().__init__(parent)
         self.story = None
         self.voice_buttons = {}
+        self.selected_voice_id = 1
         self._init_ui()
 
     def _init_ui(self):
@@ -30,7 +32,7 @@ class StoryDetailsView(QWidget):
         # Top Bar: Back Button
         top_bar = QHBoxLayout()
         self.back_btn = QPushButton("← Back to Stories")
-        self.back_btn.setCursor(Qt.PointingHandCursor)
+        self.back_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.back_btn.setStyleSheet("""
             QPushButton {
                 background: #EDF2F7;
@@ -107,7 +109,7 @@ class StoryDetailsView(QWidget):
         vh_layout.addStretch()
 
         self.record_btn = QPushButton("🎙️ + Record New Voice")
-        self.record_btn.setCursor(Qt.PointingHandCursor)
+        self.record_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.record_btn.setStyleSheet("""
             QPushButton {
                 background: #EBF4FF;
@@ -132,6 +134,7 @@ class StoryDetailsView(QWidget):
         self.voice_layout.addWidget(self.radios_container)
 
         self.voice_group = QButtonGroup(self)
+        self.voice_group.idToggled.connect(self._on_voice_toggled)
         layout.addWidget(self.voice_box)
 
         # Play Action Button
@@ -140,7 +143,7 @@ class StoryDetailsView(QWidget):
 
         self.play_btn = QPushButton("▶ Generate & Listen")
         self.play_btn.setObjectName("primaryButton")
-        self.play_btn.setCursor(Qt.PointingHandCursor)
+        self.play_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.play_btn.setStyleSheet("""
             QPushButton {
                 background-color: #48BB78;
@@ -160,8 +163,15 @@ class StoryDetailsView(QWidget):
         layout.addLayout(action_layout)
         self.refresh_voices()
 
-    def refresh_voices(self, select_profile_id: int = None):
+    def _on_voice_toggled(self, voice_id: int, checked: bool):
+        if checked:
+            self.selected_voice_id = voice_id
+
+    def refresh_voices(self, select_profile_id: Optional[int] = None):
         """Populate voice profiles from database with delete options for custom profiles."""
+        if select_profile_id is not None:
+            self.selected_voice_id = select_profile_id
+
         # Clear existing buttons from voice_group
         for btn in self.voice_group.buttons():
             self.voice_group.removeButton(btn)
@@ -169,16 +179,27 @@ class StoryDetailsView(QWidget):
         # Clear layout recursively
         while self.radios_layout.count():
             item = self.radios_layout.takeAt(0)
-            if item.widget():
-                item.widget().deleteLater()
-            elif item.layout():
-                sub_layout = item.layout()
-                while sub_layout.count():
-                    sub_item = sub_layout.takeAt(0)
-                    if sub_item.widget():
-                        sub_item.widget().deleteLater()
+            if item is not None:
+                widget = item.widget()
+                if widget is not None:
+                    widget.deleteLater()
+                else:
+                    sub_layout = item.layout()
+                    if sub_layout is not None:
+                        while sub_layout.count():
+                            sub_item = sub_layout.takeAt(0)
+                            if sub_item is not None:
+                                sub_widget = sub_item.widget()
+                                if sub_widget is not None:
+                                    sub_widget.deleteLater()
 
         voices = VoiceService.get_all_voices()
+        voice_ids = [v.id for v in voices]
+
+        # If current selected_voice_id no longer exists, fallback to default (ID 1)
+        if self.selected_voice_id not in voice_ids:
+            self.selected_voice_id = 1
+
         for idx, voice in enumerate(voices):
             row_layout = QHBoxLayout()
             row_layout.setContentsMargins(0, 2, 0, 2)
@@ -192,11 +213,12 @@ class StoryDetailsView(QWidget):
             radio = QRadioButton(label)
             radio.setStyleSheet("font-size: 14px; font-weight: 600; color: #2D3748;")
             row_layout.addWidget(radio, stretch=1)
-            self.voice_group.addButton(radio, voice.id)
+            if voice.id is not None:
+                self.voice_group.addButton(radio, voice.id)
 
             if not voice.is_default:
                 del_btn = QPushButton("🗑️ Delete")
-                del_btn.setCursor(Qt.PointingHandCursor)
+                del_btn.setCursor(Qt.CursorShape.PointingHandCursor)
                 del_btn.setToolTip(f"Delete voice '{voice.name}'")
                 del_btn.setStyleSheet("""
                     QPushButton {
@@ -222,9 +244,7 @@ class StoryDetailsView(QWidget):
 
             self.radios_layout.addLayout(row_layout)
 
-            if select_profile_id is not None and voice.id == select_profile_id:
-                radio.setChecked(True)
-            elif select_profile_id is None and voice.is_default:
+            if voice.id == self.selected_voice_id:
                 radio.setChecked(True)
 
     def _on_delete_voice(self, voice: VoiceProfile):
@@ -234,14 +254,15 @@ class StoryDetailsView(QWidget):
             "Delete Voice Profile",
             f"Are you sure you want to delete '{voice.name}'?\n\n"
             "This will remove the recorded voice and any generated stories for this voice.",
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No
         )
-        if reply == QMessageBox.Yes:
+        if reply == QMessageBox.StandardButton.Yes and voice.id is not None:
             logger.info(f"User requested deletion of voice profile: {voice.name} (ID: {voice.id})")
             success = VoiceService.delete_voice_profile(voice.id)
             if success:
                 # Default back to Aiden (ID 1)
+                self.selected_voice_id = 1
                 self.refresh_voices(select_profile_id=1)
             else:
                 QMessageBox.warning(self, "Error", f"Failed to delete '{voice.name}'.")
@@ -252,10 +273,11 @@ class StoryDetailsView(QWidget):
         self.duration_badge.setText(f"⏱️ {story.estimated_duration}s")
         self.desc_label.setText(story.description)
         self.content_text.setText(story.content)
-        self.refresh_voices()
+        self.refresh_voices(select_profile_id=self.selected_voice_id)
 
     def _on_play_clicked(self):
         checked_id = self.voice_group.checkedId()
         if checked_id == -1:
-            checked_id = 1
+            checked_id = self.selected_voice_id or 1
+        self.selected_voice_id = checked_id
         self.play_requested.emit(self.story, checked_id)
